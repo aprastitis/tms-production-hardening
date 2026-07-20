@@ -35,4 +35,10 @@ EXPOSE 8000
 # gunicorn with uvicorn workers — 2 workers is a reasonable default for a
 # small service; override at deploy time by changing the CMD in a child
 # image if needed.
-CMD ["gunicorn", "--workers", "2", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "app.main:app"]
+#
+# --preload loads the app in the master process BEFORE binding the socket,
+# so a bad SECRET_KEY / DATABASE_URL crashes gunicorn before workers can
+# accept connections. Without --preload, each worker loads the app
+# independently AFTER bind, which means a bad config still serves traffic
+# until workers crash (violates AC-3).
+CMD ["gunicorn", "--workers", "2", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--preload", "app.main:app"]
