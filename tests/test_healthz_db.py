@@ -25,7 +25,7 @@ def test_healthz_db_returns_ok_when_db_reachable(client: TestClient) -> None:
 
     assert response.status_code == 200, response.text
     body = response.json()
-    assert body == {"status": "ok", "database": "reachable"}
+    assert body == {"status": "ok", "db": "ok"}
 
 
 def test_healthz_returns_ok(client: TestClient) -> None:
