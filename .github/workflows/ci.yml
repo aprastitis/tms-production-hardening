@@ -27,7 +27,8 @@ jobs:
 
     env:
       DATABASE_URL: postgresql+psycopg://tms:tms_test_password@localhost:5432/tms_test
-      SECRET_KEY: ci-test-secret-not-for-production
+      SECRET_KEY: ci-test-secret-not-for-production-1234567890
+      JWT_SECRET: ci-test-jwt-secret-not-for-production-1234567890
 
     steps:
       - name: Checkout
