@@ -5,18 +5,27 @@ and runs migrations against the configured database.
 """
 from __future__ import annotations
 
+import sys
 from logging.config import fileConfig
+from pathlib import Path
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+# Make src/ importable so `from app.config import get_settings` resolves
+# when alembic is invoked from the repo root (where src/ is).
+ROOT = Path(__file__).resolve().parent.parent
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
 # Importing settings triggers fail-fast validation of DATABASE_URL
 # and SECRET_KEY — alembic refuses to run with bad config too.
-from app.config import get_settings
-from app.db import Base
+from app.config import get_settings  # noqa: E402
+from app.db import Base  # noqa: E402
 
 # Import all model modules so their tables register with Base.metadata.
-import app.models  # noqa: F401
+import app.models  # noqa: E402,F401
 
 config = context.config
 

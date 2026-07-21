@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TMS Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="bg-slate-100 min-h-screen">
+  <div id="app" x-data="app()" x-init="init()" class="min-h-screen">
+    <!-- Login -->
+    <template x-if="!token">
+      <div class="flex items-center justify-center min-h-screen">
+        <form @submit.prevent="login()" class="bg-white p-8 rounded shadow w-96">
+          <h1 class="text-xl font-bold mb-4">TMS Login</h1>
+          <label class="block mb-2">Username
+            <input x-model="form.username" class="border w-full p-2 rounded" />
+          </label>
+          <label class="block mb-4">Password
+            <input type="password" x-model="form.password" class="border w-full p-2 rounded" />
+          </label>
+          <button class="bg-blue-600 text-white px-4 py-2 rounded w-full">Sign in</button>
+          <p x-show="error" x-text="error" class="text-red-600 mt-2"></p>
+        </form>
+      </div>
+    </template>
+
+    <!-- Authenticated shell -->
+    <template x-if="token && user">
+      <div>
+        <nav class="bg-white p-4 shadow flex justify-between">
+          <span class="font-bold">TMS</span>
+          <span>
+            <span x-text="user.username"></span>
+            <button @click="logout()" class="ml-2 text-sm text-red-600">Logout</button>
+          </span>
+        </nav>
+
+        <main class="p-6 grid grid-cols-3 gap-4">
+          <section class="bg-white p-4 rounded shadow col-span-1">
+            <h2 class="font-bold mb-2">Daily Summary</h2>
+            <template x-if="summary">
+              <div>
+                <p>Date: <span x-text="summary.date"></span></p>
+                <p>Ingested: <span x-text="summary.ingested"></span></p>
+                <p>Matched: <span x-text="summary.matched"></span></p>
+                <p>Flags: <span x-text="summary.flag_count"></span></p>
+                <p>Open: <span x-text="summary.open_count"></span></p>
+                <p>Total USD: <span x-text="summary.total_usd"></span></p>
+              </div>
+            </template>
+          </section>
+
+          <section class="bg-white p-4 rounded shadow col-span-2">
+            <h2 class="font-bold mb-2">Flags</h2>
+            <table class="w-full text-sm">
+              <thead><tr><th>ID</th><th>Reason</th><th>Status</th><th></th></tr></thead>
+              <tbody>
+                <template x-for="f in flags" :key="f.id">
+                  <tr class="border-t">
+                    <td x-text="f.id"></td>
+                    <td x-text="f.reason_code"></td>
+                    <td x-text="f.status"></td>
+                    <td>
+                      <button x-show="f.status === 'OPEN'" @click="resolve(f)" class="text-blue-600">Resolve</button>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </section>
+
+          <section class="bg-white p-4 rounded shadow col-span-3">
+            <h2 class="font-bold mb-2">Transactions</h2>
+            <table class="w-full text-sm">
+              <thead><tr><th>ID</th><th>Ref</th><th>Amount</th><th>CCY</th><th>USD</th><th>Date</th></tr></thead>
+              <tbody>
+                <template x-for="t in transactions" :key="t.id">
+                  <tr class="border-t">
+                    <td x-text="t.id"></td>
+                    <td x-text="t.reference"></td>
+                    <td x-text="t.amount"></td>
+                    <td x-text="t.currency"></td>
+                    <td x-text="t.amount_usd"></td>
+                    <td x-text="t.value_date"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </section>
+        </main>
+
+        <!-- Change-password modal -->
+        <div x-show="user.must_change_password" class="fixed inset-0 bg-black/50 flex items-center justify-center">
+          <form @submit.prevent="changePassword()" class="bg-white p-6 rounded w-96">
+            <h3 class="font-bold mb-2">Change your password</h3>
+            <p class="text-sm text-slate-600 mb-2">Min 12 chars; cannot reuse current.</p>
+            <input type="password" x-model="newPassword" class="border w-full p-2 rounded mb-2" />
+            <button class="bg-blue-600 text-white px-4 py-2 rounded w-full">Update</button>
+            <p x-show="cpError" x-text="cpError" class="text-red-600 mt-2"></p>
+          </form>
+        </div>
+      </div>
+    </template>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -41,4 +41,4 @@ EXPOSE 8000
 # accept connections. Without --preload, each worker loads the app
 # independently AFTER bind, which means a bad config still serves traffic
 # until workers crash (violates AC-3).
-CMD ["gunicorn", "--workers", "2", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--preload", "app.main:app"]
+CMD ["gunicorn", "--workers", "2", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--preload", "--chdir", "src", "app.main:app"]

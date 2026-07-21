@@ -1,0 +1,76 @@
+project:
+  name: TMS Production Hardening
+  stack: python-fastapi
+  description: Port the TMS domain layer into the hardened FastAPI shell, add a static vanilla-JS dashboard, and pass a 7-step end-to-end smoke harness against the Tailscale deployment.
+acceptance_criteria:
+  - id: auth-login-flow
+    area: auth.login
+    given: admin credentials and per-IP rate state
+    when: POST /auth/login is called with valid creds, with wrong password, or as the 6th attempt in 60 seconds
+    then: valid → 200 with {access_token, refresh_token, user}; wrong password → 401 with {detail: invalid_credentials}; 6th → 429 with {detail: rate_limited}
+    confidence: explicit
+  - id: auth-jwt-required-all-protected
+    area: auth.middleware
+    given: any endpoint other than POST /auth/login
+    when: a request arrives with no Authorization header or with an expired or forged JWT
+    then: response is 401 with {detail: missing_token}
+    confidence: explicit
+  - id: flag-lifecycle-and-audit
+    area: flags
+    given: an authenticated user and an open flag
+    when: POST /flags is called, then GET /flags?status=open, then POST /flags/{flag_id}/resolve
+    then: create returns 201 with flag_id and an AuditLog row is written with actor=jwt.sub, event_type=flag.created; the flag appears in the open-list response; resolve returns 200 with status=resolved and an AuditLog row is written with event_type=flag.resolved
+    confidence: explicit
+  - id: transactions-list-paginated-with-filters
+    area: transactions.list
+    given: an authenticated user and at least one row in transactions
+    when: GET /transactions is called with varying combinations of page, page_size, source_id, status, value_date_from, value_date_to
+    then: response is 200 with {items, total, page, page_size}; all four filters function independently and unfiltered baseline returns the full set
+    confidence: explicit
+  - id: daily-summary-today-aggregate
+    area: reports.daily_summary
+    given: at least one flag created today (post-seed)
+    when: GET /reports/daily-summary is called
+    then: response is 200 with {date=today UTC, ingested, matched, flag_count>0, open_count, total_usd}
+    confidence: explicit
+  - id: ingest-data-ingestion
+    area: ingest
+    given: an authenticated user and either a multipart CSV file or a JSON payload from a registered Source
+    when: POST /ingest/upload or POST /ingest/webhook/DEFAULT is called
+    then: upload returns 202 with {raw_file_id, rows_accepted}; webhook returns 202 with {raw_file_id}; a RawFile row is persisted either way
+    confidence: implied
+  - id: strict-validation-and-security-headers
+    area: security
+    given: any API request and a CORS preflight plus a request for any HTML response
+    when: (a) a POST body contains an unknown field, OR (b) a preflight arrives with an origin not in the allowlist, OR (c) any HTML response is generated
+    then: (a) returns 422 listing the unknown field (Pydantic extra=forbid); (b) has no Access-Control-Allow-Origin header for unlisted origins and the exact origin for https://smartpc999-1.tail0c63e1.ts.net:8443; (c) carries Content-Security-Policy default-src 'self', script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com, style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com, connect-src 'self' https://smartpc999-1.tail0c63e1.ts.net:8443, img-src 'self' data:, frame-ancestors 'none' with no unsafe-eval
+    confidence: explicit
+  - id: password-hashing-and-boot-integrity
+    area: auth.passwords_and_boot
+    given: the admin user is seeded and the app process is started
+    when: the admin user row is inspected after seed, and the boot is attempted with SECRET_KEY or JWT_SECRET empty or missing
+    then: the password_hash begins with $argon2id$, and missing or empty secrets cause the process to exit non-zero with a clear error before binding to a port
+    confidence: explicit
+  - id: seed-and-first-login-modal
+    area: data.seed_and_ux
+    given: a fresh Postgres DB and the alembic+seed pipeline runs
+    when: the seed step completes and the admin user logs into the dashboard
+    then: exactly one admin user exists with must_change_password=true, one Source exists with code=DEFAULT and is_webhook_enabled=true, three ReasonCode rows exist (AMOUNT_MISMATCH, DATE_OUTSIDE_WINDOW, MISSING_COUNTERPARTY), and the dashboard renders a change-password modal that blocks all other UI until PATCH /auth/me/password succeeds and must_change_password flips to false
+    confidence: explicit
+  - id: dashboard-static-and-smoke-harness
+    area: frontend_and_ci
+    given: the app is running locally, in CI, or on the Tailscale deployment
+    when: GET / or GET /static/app.js is requested AND pytest tests/smoke/ is run
+    then: static files return 200 with the login form and dashboard script (CSP applied); the 7-step smoke harness (login ok, flag create, flag in open list, resolve, daily summary non-zero flag_count, 6th login 429, bad-creds 401) passes end-to-end
+    confidence: explicit
+open_questions:
+  - area: domain.models.table_count
+    text: Exact number of domain tables in /workspaces/transaction-monitoring-system-627deb0d/src/tms/models.py — spec assumes 14, please confirm during discovery
+  - area: matching.tolerance_defaults
+    text: Default amount-tolerance % and date-window days for the matching engine (spec assumes 1% relative and ±2 business days)
+  - area: fx.data_source
+    text: Where do fx_rate rows come from — manual seed for v1, or a provider integration such as ECB or exchangerate.host?
+  - area: auth.refresh_rate_limit
+    text: Should POST /auth/refresh share the 5/min/IP slowapi limit with login, or have its own threshold?
+  - area: frontend.polling
+    text: Does the dashboard need N-second polling on flags and transactions, or refresh-on-action only?
