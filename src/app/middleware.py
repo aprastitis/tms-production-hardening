@@ -13,12 +13,13 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 
-# ASSUMES: Tailwind via the official play CDN at cdn.tailwindcss.com and Alpine via
-# cdn.jsdelivr.net. No 'unsafe-eval'. Tailwind CDN is loaded as an external script;
-# its JIT runtime executes inside its own bundle, not via page-context eval.
+# ASSUMES: Tailwind via the official play CDN at cdn.tailwindcss.com and Alpine
+# via unpkg.com (the canonical CDN for Alpine 3.x). No 'unsafe-eval'. Tailwind
+# CDN is loaded as an external script; its JIT runtime executes inside its own
+# bundle, not via page-context eval.
 CSP_DIRECTIVES = (
     "default-src 'self'; "
-    "script-src 'self' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; "
+    "script-src 'self' https://cdn.tailwindcss.com https://unpkg.com https://cdn.jsdelivr.net; "
     "style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; "
     "img-src 'self' data:; "
     "font-src 'self' data:; "
